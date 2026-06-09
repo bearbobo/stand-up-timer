@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>站立提醒计时器</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg2: #f5f5f3;
+      --bg3: #ebebea;
+      --text: #1a1a18;
+      --text2: #6b6b67;
+      --border: rgba(0,0,0,0.12);
+      --green: #1D9E75;
+      --green-dark: #0F6E56;
+      --amber: #EF9F27;
+      --red: #E24B4A;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 20px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e1c;
+        --bg2: #2a2a28;
+        --bg3: #363634;
+        --text: #f0efe8;
+        --text2: #9a9a96;
+        --border: rgba(255,255,255,0.12);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg3);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .card {
+      background: var(--bg);
+      border-radius: var(--radius-xl);
+      border: 0.5px solid var(--border);
+      padding: 2rem 1.5rem 2rem;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .app-title {
+      font-size: 18px;
+      font-weight: 500;
+      text-align: center;
+      color: var(--text);
+      margin-bottom: 0.2rem;
+    }
+
+    .app-title i { font-size: 18px; vertical-align: -2px; margin-right: 6px; color: var(--green); }
+
+    .app-sub {
+      font-size: 13px;
+      color: var(--text2);
+      text-align: center;
+      margin-bottom: 1.8rem;
+    }
+
+    .ring-wrap {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 1.8rem;
+    }
+
+    .ring-wrap svg { width: 200px; height: 200px; transform: rotate(-90deg); }
+    .track { fill: none; stroke: var(--bg2); stroke-width: 14; }
+    #progress-arc {
+      fill: none;
+      stroke: var(--green);
+      stroke-width: 14;
+      stroke-linecap: round;
+      stroke-dasharray: 565;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 0.9s linear, stroke 0.5s;
+    }
+
+    .time-display {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      text-align: center;
+    }
+
+    .time-num { font-size: 42px; font-weight: 500; color: var(--text); letter-spacing: -1px; }
+    .time-label { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+    .presets {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .preset-btn {
+      font-size: 13px;
+      padding: 5px 14px;
+      border: 0.5px solid var(--border);
+      border-radius: 20px;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .preset-btn:hover { background: var(--bg2); }
+    .preset-btn.active { background: var(--green); border-color: var(--green); color: #fff; }
+
+    .custom-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    .custom-row label { font-size: 13px; color: var(--text2); }
+
+    .custom-row input {
+      width: 62px;
+      text-align: center;
+      font-size: 14px;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 5px 8px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+    }
+
+    .custom-row input:focus { border-color: var(--green); }
+
+    .sound-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text2);
+      margin-bottom: 1.2rem;
+    }
+
+    .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider-tog {
+      position: absolute; inset: 0;
+      background: var(--border);
+      border-radius: 20px;
+      transition: background 0.2s;
+    }
+    .slider-tog:before {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle input:checked + .slider-tog { background: var(--green); }
+    .toggle input:checked + .slider-tog:before { transform: translateX(16px); }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .btn-main {
+      font-size: 15px;
+      padding: 10px 36px;
+      border-radius: 24px;
+      border: none;
+      background: var(--green);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 500;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn-main:hover { opacity: 0.88; }
+    .btn-main:active { transform: scale(0.97); }
+
+    .btn-reset {
+      font-size: 14px;
+      padding: 10px 18px;
+      border-radius: 24px;
+      border: 0.5px solid var(--border);
+      background: var(--bg);
+      color: var(--text2);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-reset:hover { background: var(--bg2); }
+
+    .msg-card {
+      border-radius: var(--radius-lg);
+      padding: 0.9rem 1rem;
+      text-align: center;
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      font-size: 13px;
+      color: var(--text2);
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      line-height: 1.5;
+    }
+
+    /* Alert overlay */
+    .alert-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    .alert-overlay.show { display: flex; }
+
+    .alert-box {
+      background: var(--bg);
+      border-radius: var(--radius-xl);
+      padding: 2.5rem 2rem 2rem;
+      text-align: center;
+      max-width: 300px;
+      width: 88%;
+      border: 0.5px solid var(--border);
+      animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.65); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+
+    .figure-wrap {
+      font-size: 72px;
+      line-height: 1;
+      margin-bottom: 1rem;
+      animation: bounce 0.75s ease-in-out infinite alternate;
+    }
+
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-14px); }
+    }
+
+    .alert-title {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    .alert-sub {
+      font-size: 14px;
+      color: var(--text2);
+      margin-bottom: 1.5rem;
+      line-height: 1.65;
+    }
+
+    .alert-tips {
+      background: var(--bg2);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      font-size: 13px;
+      color: var(--text2);
+      text-align: left;
+      margin-bottom: 1.5rem;
+      line-height: 1.7;
+    }
+
+    .alert-tips b { color: var(--text); font-weight: 500; }
+
+    .btn-dismiss {
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: 24px;
+      padding: 10px 32px;
+      font-size: 15px;
+      cursor: pointer;
+      font-weight: 500;
+      width: 100%;
+      transition: opacity 0.15s;
+    }
+
+    .btn-dismiss:hover { opacity: 0.88; }
+
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 1.5rem;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1 class="app-title">
+    <i class="ti ti-clock" aria-hidden="true"></i>站立提醒计时器
+  </h1>
+  <p class="app-sub">保护腰椎，定时起身活动一下</p>
+
+  <div class="ring-wrap">
+    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <circle class="track" cx="100" cy="100" r="90"/>
+      <circle id="progress-arc" cx="100" cy="100" r="90"/>
+    </svg>
+    <div class="time-display">
+      <div class="time-num" id="time-num">30:00</div>
+      <div class="time-label" id="time-label">准备就绪</div>
+    </div>
+  </div>
+
+  <div class="presets">
+    <button class="preset-btn" data-min="15">15 分钟</button>
+    <button class="preset-btn active" data-min="30">30 分钟</button>
+    <button class="preset-btn" data-min="45">45 分钟</button>
+    <button class="preset-btn" data-min="60">60 分钟</button>
+  </div>
+
+  <div class="custom-row">
+    <label for="custom-min">自定义</label>
+    <input type="number" id="custom-min" min="1" max="120" value="30" />
+    <label>分钟</label>
+  </div>
+
+  <div class="sound-row">
+    <i class="ti ti-volume" aria-hidden="true"></i>
+    <span>声音提醒</span>
+    <label class="toggle">
+      <input type="checkbox" id="sound-toggle" checked />
+      <span class="slider-tog"></span>
+    </label>
+  </div>
+
+  <div class="controls">
+    <button class="btn-main" id="btn-start">
+      <i class="ti ti-player-play" aria-hidden="true"></i> 开始
+    </button>
+    <button class="btn-reset" id="btn-reset">
+      <i class="ti ti-refresh" aria-hidden="true"></i> 重置
+    </button>
+  </div>
+
+  <div class="msg-card" id="msg-card">
+    <i class="ti ti-info-circle" aria-hidden="true"></i>
+    <span>选择时长后点击开始，时间到了会提醒你起身活动。</span>
+  </div>
+
+  <p class="footer">祝早日康复 💪</p>
+</div>
+
+<!-- Alert overlay -->
+<div class="alert-overlay" id="alert-overlay" role="dialog" aria-modal="true" aria-label="起身提醒">
+  <div class="alert-box">
+    <div class="figure-wrap" aria-hidden="true">🧍</div>
+    <div class="alert-title">该起身啦！</div>
+    <div class="alert-sub">久坐对腰椎压力很大，<br>站起来走动走动吧。</div>
+    <div class="alert-tips">
+      <b>简单活动建议：</b><br>
+      • 原地踏步 30 秒<br>
+      • 双手叉腰，轻轻后仰<br>
+      • 走到窗边远眺一下<br>
+      • 喝杯水，放松颈肩
+    </div>
+    <button class="btn-dismiss" id="btn-dismiss">好的，我去活动 👋</button>
+  </div>
+</div>
+
+<script>
+  const ARC_LEN = 2 * Math.PI * 90;
+  let totalSec = 30 * 60;
+  let remaining = totalSec;
+  let timer = null;
+  let running = false;
+
+  const arc = document.getElementById('progress-arc');
+  const timeNum = document.getElementById('time-num');
+  const timeLabel = document.getElementById('time-label');
+  const msgCard = document.getElementById('msg-card');
+  const btnStart = document.getElementById('btn-start');
+  const btnReset = document.getElementById('btn-reset');
+  const overlay = document.getElementById('alert-overlay');
+  const customInput = document.getElementById('custom-min');
+  const soundToggle = document.getElementById('sound-toggle');
+
+  arc.style.strokeDasharray = ARC_LEN;
+
+  function fmt(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+  }
+
+  function setArc(ratio) {
+    arc.style.strokeDashoffset = ARC_LEN * (1 - ratio);
+    if (ratio > 0.4) arc.style.stroke = '#1D9E75';
+    else if (ratio > 0.15) arc.style.stroke = '#EF9F27';
+    else arc.style.stroke = '#E24B4A';
+  }
+
+  function render() {
+    timeNum.textContent = fmt(remaining);
+    setArc(remaining / totalSec);
+    if (!running && remaining === totalSec) timeLabel.textContent = '准备就绪';
+    else if (running) timeLabel.textContent = '计时中…';
+    else timeLabel.textContent = '已暂停';
+    document.title = running ? fmt(remaining) + ' — 站立提醒' : '站立提醒计时器';
+  }
+
+  function setDuration(min) {
+    if (running) return;
+    totalSec = min * 60;
+    remaining = totalSec;
+    customInput.value = min;
+    render();
+    msgCard.innerHTML = '<i class="ti ti-info-circle" aria-hidden="true"></i><span>已设置 ' + min + ' 分钟，点击开始。</span>';
+  }
+
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (running) return;
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      setDuration(parseInt(btn.dataset.min));
+    });
+  });
+
+  customInput.addEventListener('change', () => {
+    let v = parseInt(customInput.value);
+    if (isNaN(v) || v < 1) v = 1;
+    if (v > 120) v = 120;
+    customInput.value = v;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    setDuration(v);
+  });
+
+  function playAlert() {
+    if (!soundToggle.checked) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.28, 0.56].forEach(delay => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = 880;
+        o.type = 'sine';
+        g.gain.setValueAtTime(0, ctx.currentTime + delay);
+        g.gain.linearRampToValueAtTime(0.4, ctx.currentTime + delay + 0.06);
+        g.gain.linearRampToValueAtTime(0, ctx.currentTime + delay + 0.36);
+        o.start(ctx.currentTime + delay);
+        o.stop(ctx.currentTime + delay + 0.4);
+      });
+    } catch (e) {}
+  }
+
+  function tick() {
+    remaining--;
+    render();
+    if (remaining <= 0) {
+      clearInterval(timer);
+      running = false;
+      btnStart.innerHTML = '<i class="ti ti-player-play" aria-hidden="true"></i> 开始';
+      timeLabel.textContent = '完成！';
+      msgCard.innerHTML = '<i class="ti ti-check" aria-hidden="true" style="color:#1D9E75"></i><span>时间到！请起身活动一下。</span>';
+      playAlert();
+      overlay.classList.add('show');
+      if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400]);
+    }
+  }
+
+  btnStart.addEventListener('click', () => {
+    if (remaining <= 0) return;
+    running = !running;
+    if (running) {
+      timer = setInterval(tick, 1000);
+      btnStart.innerHTML = '<i class="ti ti-player-pause" aria-hidden="true"></i> 暂停';
+      msgCard.innerHTML = '<i class="ti ti-run" aria-hidden="true" style="color:#1D9E75"></i><span>计时中，到时间会提醒你起身。</span>';
+    } else {
+      clearInterval(timer);
+      btnStart.innerHTML = '<i class="ti ti-player-play" aria-hidden="true"></i> 继续';
+    }
+    render();
+  });
+
+  btnReset.addEventListener('click', () => {
+    clearInterval(timer);
+    running = false;
+    remaining = totalSec;
+    btnStart.innerHTML = '<i class="ti ti-player-play" aria-hidden="true"></i> 开始';
+    render();
+    msgCard.innerHTML = '<i class="ti ti-info-circle" aria-hidden="true"></i><span>已重置，点击开始重新计时。</span>';
+    document.title = '站立提醒计时器';
+  });
+
+  document.getElementById('btn-dismiss').addEventListener('click', () => {
+    overlay.classList.remove('show');
+    remaining = totalSec;
+    running = false;
+    btnStart.innerHTML = '<i class="ti ti-player-play" aria-hidden="true"></i> 开始';
+    render();
+    msgCard.innerHTML = '<i class="ti ti-refresh" aria-hidden="true" style="color:#1D9E75"></i><span>休息完了？点击开始下一轮计时。</span>';
+  });
+
+  render();
+</script>
+</body>
+</html>
